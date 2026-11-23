@@ -26,7 +26,8 @@
   #timer { top:64px; left:50%; transform:translateX(-50%); font-size:22px; font-weight:800; color:#ffd23c; }
   #prompt { bottom:118px; left:50%; transform:translateX(-50%); font-size:17px; font-weight:700;
     background:rgba(10,16,28,.65); padding:6px 14px; border-radius:9px; border:1px solid rgba(255,255,255,.35); }
-  #busted-wrap { bottom:170px; left:50%; transform:translateX(-50%); width:240px; text-align:center; font-weight:800; color:#7db4ff; font-size:14px; }
+  #busted-wrap { display:none; bottom:170px; left:50%; transform:translateX(-50%); width:240px; text-align:center; font-weight:800; color:#7db4ff; font-size:14px; }
+  #prompt:empty, #timer:empty { display:none; }
   #busted-bar-bg { height:9px; background:rgba(0,0,0,.6); border-radius:5px; overflow:hidden; border:1px solid rgba(255,255,255,.4); }
   #busted-bar { height:100%; width:0%; background:#3d7bff; }
   #minimap-wrap { left:16px; bottom:16px; border:2px solid rgba(255,255,255,.55); border-radius:10px; overflow:hidden; box-shadow:0 4px 18px rgba(0,0,0,.5); }

@@ -54,7 +54,7 @@ export class Sky {
     this.fwPos = new Float32Array(1200 * 3); this.fwCol = new Float32Array(1200 * 3);
     this.fw.geo.setAttribute('position', new THREE.BufferAttribute(this.fwPos, 3));
     this.fw.geo.setAttribute('color', new THREE.BufferAttribute(this.fwCol, 3));
-    this.fwPoints = new THREE.Points(this.fw.geo, new THREE.PointsMaterial({ size: 1.5, vertexColors: true, transparent: true, opacity: 0.95, depthWrite: false, fog: false }));
+    this.fwPoints = new THREE.Points(this.fw.geo, new THREE.PointsMaterial({ size: 2.3, vertexColors: true, transparent: true, opacity: 0.95, depthWrite: false, fog: false }));
     this.fwPoints.frustumCulled = false; scene.add(this.fwPoints);
     this.fireworksActive = false;
     this.nightFactor = 0; this.goldenFactor = 0;
@@ -69,7 +69,7 @@ export class Sky {
   launchFirework(cx, cz) {
     const colors = [0xff5da2, 0x33e0ff, 0xffd23c, 0x9dff57, 0xff8c42, 0xc39bff];
     const c = new THREE.Color(this.rng.pick(colors));
-    const ox = cx + this.rng.range(-50, 50), oz = cz + this.rng.range(-25, 25), oy = this.rng.range(46, 70);
+    const ox = cx + this.rng.range(-50, 50), oz = cz + this.rng.range(-25, 25), oy = this.rng.range(34, 54);
     for (let i = 0; i < 70 && this.fw.parts.length < 1200; i++) {
       const a = Math.random() * Math.PI * 2, e = Math.random() * Math.PI - Math.PI / 2, s = this.rng.range(9, 20);
       this.fw.parts.push({
@@ -94,9 +94,8 @@ export class Sky {
     // sky colour: night -> dawn gold -> day blue -> dusk coral -> night
     const cNight = new THREE.Color(0x0d1830), cDay = new THREE.Color(0x87c5e8),
       cGold = new THREE.Color(0xff9e5e), cDusk = new THREE.Color(0xff7e5f);
-    let sky = cNight.clone();
-    if (sunH > 0.25) sky.lerp(cDay, clamp((sunH - 0.25) * 1.8, 0, 1));
-    else if (sunH > -0.05) sky.lerp(sx > 0 ? cGold : cDusk, clamp((sunH + 0.05) * 3, 0, 1) * 0.9 + 0.1);
+    let sky = cNight.clone().lerp(cDay, clamp(dayF * 1.15, 0, 1));
+    if (this.goldenFactor > 0.02) sky.lerp(sx > 0 ? cGold : cDusk, this.goldenFactor * 0.42);
     if (this.weather === 'overcast') sky.lerp(new THREE.Color(0x8fa3b0), 0.55);
     if (this.weather === 'rain') sky.lerp(new THREE.Color(0x5d7182), 0.6);
     this.skyDome.material.color.copy(sky);
@@ -105,8 +104,8 @@ export class Sky {
     const warm = new THREE.Color(0xffb36b), noon = new THREE.Color(0xfff4e0), moon = new THREE.Color(0x8fb2e8);
     this.sun.color.copy(sunH > 0 ? noon.clone().lerp(warm, this.goldenFactor) : moon);
     this.sun.intensity = sunH > 0 ? lerp(0.35, 1.25, clamp(sunH * 1.6, 0, 1)) : 0.22;
-    this.amb.intensity = lerp(0.16, 0.55, dayF);
-    this.hemi.intensity = lerp(0.1, 0.5, dayF);
+    this.amb.intensity = lerp(0.24, 0.55, dayF);
+    this.hemi.intensity = lerp(0.17, 0.5, dayF);
     this.stars.material.opacity = this.nightFactor * (this.weather === 'clear' ? 0.95 : 0.15);
     this.sunBall.material.color.setHex(sunH > -0.05 ? 0xfff3b0 : 0x554f33);
     // weather drift

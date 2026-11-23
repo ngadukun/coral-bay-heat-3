@@ -124,6 +124,7 @@ let bustedMeter = 0, crimeCd = 0, menuAngle = 0;
 let prevMouseDown = false;
 
 if (shotName) {
+  $('start-screen').classList.add('hidden');
   saveState.cash = 2450; saveState.shells = [0, 1, 2]; saveState.buoys = [0, 1];
   player.pistol = true; player.ammo = 18;
   shotCam = stageShot(shotName, ctx);
@@ -270,7 +271,7 @@ function frame() {
   const slowOrFoot = !player.car || Math.abs(player.car.speed) < 2.5;
   if (wanted.stars > 0 && nearCop < 8 && slowOrFoot) bustedMeter = Math.min(1, bustedMeter + dt / 2.4);
   else bustedMeter = Math.max(0, bustedMeter - dt * 0.7);
-  $('busted-wrap').style.display = bustedMeter > 0.02 ? '' : 'none';
+  $('busted-wrap').style.display = bustedMeter > 0.02 ? 'block' : 'none';
   $('busted-bar').style.width = (bustedMeter * 100) + '%';
   if (bustedMeter >= 1) { ui.bigmsg('BUSTED', '#7db4ff'); respawn(LOCATIONS.policeStation, 'Busted'); }
   if (player.dead) { ui.bigmsg('WASTED', '#ff5f6d'); respawn(LOCATIONS.hospital, 'Wasted'); }
