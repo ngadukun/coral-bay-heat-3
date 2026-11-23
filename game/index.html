@@ -1,19 +1,118 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Block Dodger</title>
+<title>Coral Bay Heat — a tiny open-world crime game</title>
 <style>
-  html, body { margin: 0; height: 100%; overflow: hidden; background: #11141b; }
-  #game { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
-  /* Read aloud, never shown: the status line screen readers announce. */
-  #status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html,body { width:100%; height:100%; overflow:hidden; background:#0d1830; font-family:'Segoe UI', Arial, sans-serif; color:#fff; }
+  #game { position:fixed; inset:0; }
+  canvas.webgl { display:block; width:100%; height:100%; }
+  .hud { position:fixed; z-index:5; pointer-events:none; text-shadow:0 1px 3px rgba(0,0,0,.8); }
+  #hud-left { top:14px; left:16px; }
+  #health-wrap { width:210px; height:14px; background:rgba(0,0,0,.55); border:1px solid rgba(255,255,255,.5); border-radius:7px; overflow:hidden; }
+  #health-bar { height:100%; width:100%; background:linear-gradient(90deg,#ff5f6d,#ffc371); transition:width .2s; }
+  #cash { font-size:24px; font-weight:800; color:#8dff7a; margin-top:5px; letter-spacing:.5px; }
+  #ammo { font-size:15px; color:#ffe9a8; font-weight:700; }
+  #collect { font-size:13px; color:#ffd23c; margin-top:2px; }
+  #hud-right { top:12px; right:18px; text-align:right; }
+  #stars { font-size:26px; color:#3a3f46; letter-spacing:3px; }
+  #stars .on { color:#ffd23c; text-shadow:0 0 9px #ffd23c; }
+  #clock { font-size:16px; font-weight:700; color:#dff3ff; }
+  #weather { font-size:12px; color:#bfe3ff; text-transform:capitalize; }
+  #objective { top:16px; left:50%; transform:translateX(-50%); max-width:56%; text-align:center;
+    font-size:16px; font-weight:700; color:#fff; background:rgba(10,16,28,.55); padding:7px 16px; border-radius:10px; border:1px solid rgba(255,210,60,.35); }
+  #timer { top:64px; left:50%; transform:translateX(-50%); font-size:22px; font-weight:800; color:#ffd23c; }
+  #prompt { bottom:118px; left:50%; transform:translateX(-50%); font-size:17px; font-weight:700;
+    background:rgba(10,16,28,.65); padding:6px 14px; border-radius:9px; border:1px solid rgba(255,255,255,.35); }
+  #busted-wrap { bottom:170px; left:50%; transform:translateX(-50%); width:240px; text-align:center; font-weight:800; color:#7db4ff; font-size:14px; }
+  #busted-bar-bg { height:9px; background:rgba(0,0,0,.6); border-radius:5px; overflow:hidden; border:1px solid rgba(255,255,255,.4); }
+  #busted-bar { height:100%; width:0%; background:#3d7bff; }
+  #minimap-wrap { left:16px; bottom:16px; border:2px solid rgba(255,255,255,.55); border-radius:10px; overflow:hidden; box-shadow:0 4px 18px rgba(0,0,0,.5); }
+  #minimap { display:block; width:172px; height:172px; }
+  #toast { bottom:210px; left:50%; transform:translateX(-50%); font-size:18px; font-weight:800; color:#ffd23c;
+    background:rgba(10,16,28,.6); padding:6px 16px; border-radius:9px; opacity:0; transition:opacity .3s; }
+  #dialogue { bottom:26px; left:50%; transform:translateX(-50%); width:min(680px,86%); background:rgba(8,12,24,.88);
+    border:1px solid #ffd23c; border-radius:12px; padding:12px 16px 12px 74px; min-height:64px; pointer-events:none; }
+  #dialogue .avatar { position:absolute; left:12px; top:12px; width:48px; height:48px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center; font-weight:900; font-size:19px; color:#10202e; }
+  #dialogue .who { color:#ffd23c; font-weight:800; font-size:14px; }
+  #dialogue .text { font-size:15px; line-height:1.35; }
+  #dialogue .hint { font-size:11px; color:#9fb6c9; margin-top:4px; }
+  .overlay { position:fixed; inset:0; z-index:20; display:flex; align-items:center; justify-content:center; flex-direction:column;
+    background:radial-gradient(ellipse at 50% 35%, rgba(255,126,95,.28), rgba(8,12,26,.88) 70%); text-align:center; padding:20px; }
+  .title { font-size:64px; font-weight:900; letter-spacing:2px; line-height:.95;
+    background:linear-gradient(180deg,#ffe9a8,#ff7e5f 55%,#ff5da2); -webkit-background-clip:text; background-clip:text; color:transparent;
+    filter:drop-shadow(0 3px 10px rgba(0,0,0,.6)); }
+  .subtitle { color:#dff3ff; font-size:16px; margin:10px 0 4px; max-width:620px; line-height:1.45; }
+  .btn { pointer-events:auto; cursor:pointer; margin:7px; padding:12px 34px; font-size:18px; font-weight:800; color:#10202e;
+    background:linear-gradient(180deg,#ffd23c,#ff9e5e); border:none; border-radius:11px; box-shadow:0 4px 14px rgba(0,0,0,.45); }
+  .btn:hover { filter:brightness(1.1); }
+  .btn.ghost { background:rgba(255,255,255,.14); color:#fff; border:1px solid rgba(255,255,255,.5); }
+  .controls { margin-top:14px; font-size:13px; color:#cfe2f2; line-height:1.65; background:rgba(0,0,0,.35); padding:10px 18px; border-radius:10px; }
+  .controls b { color:#ffd23c; }
+  #card { z-index:15; background:rgba(8,12,26,.55); }
+  #card .box { background:rgba(10,16,30,.92); border:1px solid #ffd23c; border-radius:14px; padding:26px 38px; max-width:520px; }
+  #card h2 { color:#ffd23c; font-size:30px; margin-bottom:8px; }
+  #bigmsg { font-size:56px; font-weight:900; letter-spacing:4px; z-index:18; }
+  #grade { position:fixed; inset:0; z-index:2; pointer-events:none; mix-blend-mode:overlay; opacity:.5;
+    background:linear-gradient(180deg, rgba(255,170,80,.20), rgba(20,40,90,.12) 60%, rgba(10,10,40,.22)); }
+  .hidden { display:none !important; }
 </style>
 </head>
 <body>
-<canvas id="game" aria-label="Block Dodger: move the paddle left and right to dodge falling blocks and catch coins"></canvas>
-<p id="status" role="status" aria-live="polite"></p>
-<script type="module" src="./src/main.js"></script>
+<div id="game"></div>
+<div id="grade"></div>
+
+<div class="hud" id="hud-left">
+  <div id="health-wrap"><div id="health-bar"></div></div>
+  <div id="cash">$0</div>
+  <div id="ammo"></div>
+  <div id="collect"></div>
+</div>
+<div class="hud" id="hud-right">
+  <div id="stars"></div>
+  <div id="clock">12:00</div>
+  <div id="weather">clear</div>
+</div>
+<div class="hud" id="objective"></div>
+<div class="hud" id="timer"></div>
+<div class="hud" id="prompt"></div>
+<div class="hud" id="busted-wrap"><div id="busted-label">BUSTED</div><div id="busted-bar-bg"><div id="busted-bar"></div></div></div>
+<div class="hud" id="minimap-wrap"><canvas id="minimap" width="172" height="172"></canvas></div>
+<div class="hud" id="toast"></div>
+<div class="hud hidden" id="dialogue"><div class="avatar" id="dlg-avatar">?</div><div class="who" id="dlg-who"></div><div class="text" id="dlg-text"></div><div class="hint">E / click — continue</div></div>
+<div class="hud hidden" id="bigmsg"></div>
+
+<div class="overlay hidden" id="card"><div class="box"><h2 id="card-title"></h2><p id="card-body"></p><button class="btn" id="card-btn">Continue</button></div></div>
+
+<div class="overlay" id="start-screen">
+  <div class="title">CORAL BAY<br>HEAT</div>
+  <p class="subtitle">Marina “Mari” Solano came home to Coral Bay owing the harbour more than she has.
+    Drive, run, race and shoot your way through thirteen jobs — from café collections to a five-star
+    harbour finale under the fireworks.</p>
+  <div>
+    <button class="btn" id="btn-new">New Game</button>
+    <button class="btn ghost" id="btn-continue">Continue</button>
+  </div>
+  <div class="controls">
+    <b>WASD</b> move / drive &nbsp; <b>Mouse</b> camera &nbsp; <b>Shift</b> sprint &nbsp; <b>Space</b> jump / handbrake<br>
+    <b>E</b> enter car · talk · buy &nbsp; <b>Click</b> punch / fire pistol &nbsp; <b>T</b> taxi fare / street race &nbsp; <b>Esc</b> pause
+  </div>
+</div>
+
+<div class="overlay hidden" id="pause-screen">
+  <div class="title" style="font-size:42px;">PAUSED</div>
+  <p class="subtitle" id="pause-stats"></p>
+  <div>
+    <button class="btn" id="btn-resume">Resume</button>
+    <button class="btn ghost" id="btn-save">Save</button>
+    <button class="btn ghost" id="btn-restart">Restart Game</button>
+  </div>
+</div>
+
+<script src="vendor/three.min.js"></script>
+<script type="module" src="src/main.js"></script>
 </body>
 </html>

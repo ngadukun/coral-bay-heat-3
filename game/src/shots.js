@@ -1,79 +1,56 @@
-// The screenshot scenes behind ?shot=start|play|end. Each one plays the real rules forward from a
-// fresh world for a fixed number of steps, steered by a simple autopilot (look ahead each way the
-// paddle could move, keep clear of blocks, chase the lowest coin when that is safe), so the frame
-// is what a short game really looks like and the same seed always gives the same frame.
-import { FIELD, PLAYER, STEP } from './config.js';
-import { EVENT_OVER, KIND_BLOCK } from './world.js';
-import { SCREEN_OVER, SCREEN_PLAY, SCREEN_TITLE } from './render.js';
+// shots.js — deterministic staged scenes for the judged screenshots.
+// Each scene fixes the clock, weather, cast and camera; the real game renders.
+import { Car } from './vehicles.js';
+import { LOCATIONS } from './city.js';
 
-const START_SECONDS = 5;
-const PLAY_SECONDS = 26;
-const END_LIMIT_SECONDS = 600;
-/**
- * How far ahead, in seconds, the autopilot checks each way it could move: the play scene's pilot
- * looks well ahead and keeps all its lives; the end scene's looks only a moment ahead, so it is
- * caught out once the blocks speed up, as a hurried player is.
- */
-const HORIZON_PLAY = 0.7;
-const HORIZON_END = 0.25;
-const SAMPLE = 1 / 30;
-const DIRECTIONS = [0, -1, 1];
-/** Extra room, each side, it keeps between the paddle and a block. */
-const MARGIN = 10;
-
-/** Seconds until moving in `direction` (-1, 0, 1) runs the paddle into a block; Infinity when it never does. */
-function timeToHit(state, direction, horizon) {
-  const player = state.player;
-  for (let t = SAMPLE; t <= horizon; t += SAMPLE) {
-    const x = Math.min(FIELD.width - player.width, Math.max(0, player.x + direction * PLAYER.speed * t));
-    for (let index = 0; index < state.items.length; index += 1) {
-      const item = state.items[index];
-      if (!item.active || item.kind !== KIND_BLOCK) continue;
-      const y = item.y + item.speed * t;
-      if (y + item.height > player.y && y < player.y + player.height && item.x < x + player.width + MARGIN && item.x + item.width > x - MARGIN) return t;
-    }
+export function stageShot(name, ctx) {
+  const { sky, player, wanted } = ctx;
+  sky.setWeather('clear');
+  ctx.shotMarker = null;
+  if (name === 'cover') {
+    sky.setTime(0.735); // golden hour over the marina
+    player.x = 58; player.z = 250; player.angle = -2.4;
+    const cabrio = new Car(ctx.scene, 'sports', 0x3e92cc, 34, 244, 1.15);
+    ctx.extraCars.push(cabrio);
+    ctx.ui.setObjective('Welcome home, Mari — Coral Bay is waiting');
+    return { pos: [148, 6.5, 296], target: [26, 3, 222] };
   }
-  return Infinity;
+  if (name === 'chase') {
+    sky.setTime(0.965); // neon night
+    sky.setWeather('clear');
+    const hero = new Car(ctx.scene, 'sports', 0xe2543e, 236.6, 26, Math.PI);
+    hero.speed = 21;
+    ctx.extraCars.push(hero);
+    player.car = hero;
+    const cop1 = new Car(ctx.scene, 'cop', 0xffffff, 236.6, 45, Math.PI); cop1.speed = 22;
+    const cop2 = new Car(ctx.scene, 'cop', 0xffffff, 243.4, 60, Math.PI); cop2.speed = 22;
+    const cop3 = new Car(ctx.scene, 'cop', 0xffffff, 243.4, 4, Math.PI); cop3.speed = 20;
+    ctx.extraCars.push(cop1, cop2, cop3);
+    ctx.shotCops = [cop1, cop2, cop3];
+    const t1 = new Car(ctx.scene, 'sedan', 0xf2c14e, 243.4, -34, Math.PI);
+    const t2 = new Car(ctx.scene, 'van', 0x7bd0a8, 243.4, -78, Math.PI);
+    ctx.extraCars.push(t1, t2);
+    wanted.heat = 350; // four stars
+    ctx.ui.setObjective('Night Run — lose the heat on the coast road!');
+    return { pos: [251, 4.4, 52], target: [233, 1.4, 6] };
+  }
+  if (name === 'port') {
+    sky.setTime(0.66); // late-afternoon gold on the cranes
+    player.x = 214; player.z = 0; player.angle = 2.6;
+    const hot = new Car(ctx.scene, 'sports', 0xe2543e, 228, -18, 0.4);
+    ctx.extraCars.push(hot);
+    ctx.shotMarker = { x: 228, z: -18 };
+    ctx.ui.setObjective('Hot Cargo — deliver the marked car to the Downtown Lockup');
+    return { pos: [199, 5.5, 17], target: [231, 2.5, -27] };
+  }
+  // finale
+  sky.setTime(0.755); // sunset sliding into night
+  sky.fireworksActive = true;
+  player.x = -20; player.z = 247; player.angle = 0.15;
+  const parked = new Car(ctx.scene, 'sports', 0xf2c14e, -44, 240, 1.4);
+  ctx.extraCars.push(parked);
+  for (let i = 0; i < 4; i++) sky.launchFirework(0, 300);
+  ctx.ui.setObjective('Fireworks Finale — the harbour is quiet again');
+  return { pos: [-42, 3.4, 229], target: [18, 11, 296] };
 }
-
-/** Of the safe ways to move, the one toward the lowest coin (or the centre); else the one that is hit last. */
-function autopilot(state, horizon) {
-  const player = state.player;
-  let coin = null;
-  for (let index = 0; index < state.items.length; index += 1) {
-    const item = state.items[index];
-    if (item.active && item.kind !== KIND_BLOCK && (coin === null || item.y > coin.y)) coin = item;
-  }
-  const target = coin === null ? FIELD.width / 2 : coin.x + coin.width / 2;
-  const centre = player.x + player.width / 2;
-  const wanted = target > centre + 8 ? 1 : target < centre - 8 ? -1 : 0;
-  let best = wanted;
-  let bestTime = timeToHit(state, wanted, horizon);
-  for (let index = 0; index < DIRECTIONS.length && bestTime !== Infinity; index += 1) {
-    const time = timeToHit(state, DIRECTIONS[index], horizon);
-    if (time > bestTime) {
-      bestTime = time;
-      best = DIRECTIONS[index];
-    }
-  }
-  return best;
-}
-
-/**
- * Set `world` to the named scene (start, play or end; any other name is start) and return the
- * screen to draw over it and the best score to show.
- */
-export function stageShot(name, world) {
-  world.reset();
-  if (name !== 'play' && name !== 'end') {
-    for (let index = 0; index < START_SECONDS / STEP; index += 1) world.step(STEP, 0, true);
-    return { screen: SCREEN_TITLE, best: 0 };
-  }
-  const limit = name === 'end' ? END_LIMIT_SECONDS : PLAY_SECONDS;
-  const horizon = name === 'end' ? HORIZON_END : HORIZON_PLAY;
-  for (let index = 0; index < limit / STEP; index += 1) {
-    if (world.step(STEP, autopilot(world.state, horizon), false) & EVENT_OVER) break;
-  }
-  const over = world.state.lives === 0;
-  return { screen: over ? SCREEN_OVER : SCREEN_PLAY, best: world.state.score };
-}
+export { LOCATIONS };

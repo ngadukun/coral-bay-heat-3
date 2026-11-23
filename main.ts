@@ -12,6 +12,7 @@
 // Outside the grader's container, MAKEFUN_OUTPUT_DIR stands in for /output:
 //   mkdir -p out && MAKEFUN_OUTPUT_DIR=out node main.ts
 
+// Coral Bay Heat (pass 3) hands in a thirteen-mission open-world crime game: Harbor Nights, the Neon Grand Prix and the Fireworks Finale.
 import { cpSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
